@@ -73,13 +73,21 @@ async function run() {
         // ==========================================
         
         // 1. Add Book (Protected)
-        app.post("/books", verifyToken, async (req, res) => {
-            const book = req.body;
-            book.createdAt = new Date();
-            book.totalCopies = parseInt(book.totalCopies); // Make sure it's a number
-            const result = await bookCollection.insertOne(book);
-            res.send(result);
-        });
+       app.post("/books", async (req, res) => {
+    try {
+        const book = req.body;
+        book.createdAt = new Date();
+        
+        // ফ্রন্টএন্ড থেকে totalCopies বা quantity যে নামেই আসুক না কেন, এটা হ্যান্ডেল করে নেবে
+        book.totalCopies = parseInt(book.totalCopies || book.quantity || 0); 
+        
+        const result = await bookCollection.insertOne(book);
+        res.send(result);
+    } catch (error) {
+        console.error("Book Add Error:", error);
+        res.status(500).send({ msg: "Server Error!" });
+    }
+});
 
         // 2. Get All Books (Public) - For Home Page (limit) and All Books page
         app.get("/books", async (req, res) => {
