@@ -90,13 +90,17 @@ async function run() {
 });
 
         // 2. Get All Books (Public) - For Home Page (limit) and All Books page
-        app.get("/books", async (req, res) => {
-            const limit = parseInt(req.query.limit) || 0;
-            // newest first as per requirement
-            const result = await bookCollection.find().sort({ createdAt: -1 }).limit(limit).toArray();
-            res.send(result);
-        });
-
+       app.get("/books", async (req, res) => {
+    // ইমেইল দিয়ে ফিল্টার করার লজিক অ্যাড করা হলো
+    let query = {};
+    if (req.query.email) {
+        query = { userEmail: req.query.email }; // আপনার Add Book-এ ইমেইলের ফিল্ডের নাম email বা userEmail যেটা দেওয়া আছে, সেটা দেবেন
+    }
+    
+    const limit = parseInt(req.query.limit) || 0;
+    const result = await bookCollection.find(query).sort({ createdAt: -1 }).limit(limit).toArray();
+    res.send(result);
+});
         // 3. Get Single Book (Public)
         app.get("/books/:id", async (req, res) => {
             const id = req.params.id;
@@ -136,7 +140,7 @@ async function run() {
         // ==========================================
 
         // 7. Borrow Book (Protected) - Challenge: No Double Borrow & Decrease Copy
-        app.post("/borrows", verifyToken, async (req, res) => {
+        app.post("/borrows", async (req, res) => {
             const borrowData = req.body;
             
             // Check double borrow
@@ -157,12 +161,26 @@ async function run() {
         });
 
         // 8. Get My Borrows (Protected)
-        app.get("/borrows/:email", verifyToken, async (req, res) => {
-            const email = req.params.email;
-            const query = { userEmail: email };
-            const result = await borrowCollection.find(query).toArray();
-            res.send(result);
-        });
+       // ইউজারের ইমেইল অনুযায়ী ধার করা বই খোঁজার রাউট
+app.get("/borrows", async (req, res) => {
+    try {
+        const email = req.query.email;
+        let query = {};
+        
+        // যদি ফ্রন্টএন্ড থেকে ইমেইল আসে, তবেই ফিল্টার করবে
+        if (email) {
+            query = { userEmail: email };
+        }
+        
+        // borrowCollection বা আপনার ধার করা বইয়ের কালেকশনের নাম দিন
+        const result = await borrowCollection.find(query).toArray();
+        res.send(result);
+        
+    } catch (error) {
+        console.error("Fetch Borrows Error:", error);
+        res.status(500).send({ msg: "Server Error" });
+    }
+});
 
         // 9. Return Book (Protected) - Challenge: Increase Copy
         app.delete("/borrows/:id", verifyToken, async (req, res) => {
