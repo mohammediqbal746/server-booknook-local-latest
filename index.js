@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { MongoClient, ServerApiVersion } from 'mongodb';
+import { createRemoteJWKSet, jwtVerify } from "jose";
 
 dotenv.config();
 
@@ -34,6 +35,33 @@ async function run() {
         const db = client.db("bookNookDB");
         const bookCollection = db.collection("books");
         const borrowCollection = db.collection("borrows");
+
+        // JWT Verify Middleware (Security Guard)
+        const verifyToken = async (req, res, next) => {
+            const authHeader = req.headers.authorization;
+
+            if (!authHeader) {
+                return res.status(401).send({ msg: "Unauthorized!" });
+            }
+
+            const token = authHeader.split(" ")[1];
+
+            if (!token) {
+                return res.status(401).send({ msg: "Unauthorized!" });
+            }
+
+            const JWKS = createRemoteJWKSet(
+                new URL(`${process.env.CLIENT_URL}/api/auth/jwks`),
+            );
+
+            try {
+                const { payload } = await jwtVerify(token, JWKS);
+                req.user = payload; // (পরবর্তীতে কাজে লাগানোর জন্য ইউজার ডাটা সেভ করে রাখলাম)
+                next();
+            } catch (error) {
+                return res.status(500).send({ msg: "Server Error!" });
+            }
+        };
 
         // --- Standard Routes ---
         app.get('/', (req, res) => {
